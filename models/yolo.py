@@ -38,6 +38,7 @@ class Detect(nn.Module):
         super().__init__()
         self.nc = nc  # number of classes
         self.nsubcat = nsubcat
+        # print(nsubcat)
         self.no = nc + nsubcat + 5  # number of outputs per anchor
         self.nl = len(anchors)  # number of detection layers
         self.na = len(anchors[0]) // 2  # number of anchors
@@ -98,6 +99,7 @@ class Model(nn.Module):
         if nc and nc != self.yaml['nc']:
             LOGGER.info(f"Overriding model.yaml nc={self.yaml['nc']} with nc={nc}")
             self.yaml['nc'] = nc  # override yaml value
+            self.yaml['nsubcat'] = nsubcat
         if anchors:
             LOGGER.info(f'Overriding model.yaml anchors with anchors={anchors}')
             self.yaml['anchors'] = round(anchors)  # override yaml value
@@ -243,9 +245,9 @@ class Model(nn.Module):
 
 def parse_model(d, ch):  # model_dict, input_channels(3)
     LOGGER.info(f"\n{'':>3}{'from':>18}{'n':>3}{'params':>10}  {'module':<40}{'arguments':<30}")
-    anchors, nc, gd, gw = d['anchors'], d['nc'], d['depth_multiple'], d['width_multiple']
+    anchors, nc, gd, gw, nsubcat = d['anchors'], d['nc'], d['depth_multiple'], d['width_multiple'], d['nsubcat']
     na = (len(anchors[0]) // 2) if isinstance(anchors, list) else anchors  # number of anchors
-    no = na * (nc + 5)  # number of outputs = anchors * (classes + 5)
+    no = na * (nc + nsubcat + 5)  # number of outputs = anchors * (classes + subcats + 5)
 
     layers, save, c2 = [], [], ch[-1]  # layers, savelist, ch out
     for i, (f, n, m, args) in enumerate(d['backbone'] + d['head']):  # from, number, module, args
@@ -272,17 +274,24 @@ def parse_model(d, ch):  # model_dict, input_channels(3)
         elif m is Concat:
             c2 = sum(ch[x] for x in f)
         elif m is Detect:
+            # print(args)
+            # args.insert(1,nsubcat)
+            # print(args)
             args.append([ch[x] for x in f])
-            if isinstance(args[1], int):  # number of anchors
-                args[1] = [list(range(args[1] * 2))] * len(f)
+            # print(args)
+            if isinstance(args[2], int):  # number of anchors
+                args[2] = [list(range(args[2] * 2))] * len(f)
+                # print(args)
         elif m is Contract:
             c2 = ch[f] * args[0] ** 2
         elif m is Expand:
             c2 = ch[f] // args[0] ** 2
         else:
             c2 = ch[f]
+        if m is Detect:
+            print(args)
 
-        m_ = nn.Sequential(*(m(*args) for _ in range(n))) if n > 1 else m(*args)  # module
+        m_ = nn.Sequential(*(m(*args) for _ in range(n))) if n > 1 else m(*args)  # module 
         t = str(m)[8:-2].replace('__main__.', '')  # module type
         np = sum(x.numel() for x in m_.parameters())  # number params
         m_.i, m_.f, m_.type, m_.np = i, f, t, np  # attach index, 'from' index, type, number params
