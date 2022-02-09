@@ -435,6 +435,8 @@ class LoadImagesAndLabels(Dataset):
         # Read cache
         [cache.pop(k) for k in ('hash', 'version', 'msgs')]  # remove items
         labels, shapes, self.segments = zip(*cache.values())
+        # print(labels, shapes, self.segments)
+        # print(zip(*cache.values()))
         self.labels = list(labels)
         self.shapes = np.array(shapes, dtype=np.float64)
         self.img_files = list(cache.keys())  # update
@@ -576,7 +578,7 @@ class LoadImagesAndLabels(Dataset):
 
             labels = self.labels[index].copy()
             if labels.size:  # normalized xywh to pixel xyxy format
-                labels[:, 1:] = xywhn2xyxy(labels[:, 1:], ratio[0] * w, ratio[1] * h, padw=pad[0], padh=pad[1])
+                labels[:, 1:-1] = xywhn2xyxy(labels[:, 1:], ratio[0] * w, ratio[1] * h, padw=pad[0], padh=pad[1])
 
             if self.augment:
                 img, labels = random_perspective(img, labels,
@@ -613,8 +615,9 @@ class LoadImagesAndLabels(Dataset):
             # Cutouts
             # labels = cutout(img, labels, p=0.5)
             # nl = len(labels)  # update after cutout
-
-        labels_out = torch.zeros((nl, 6))
+        # print(labels.shape)
+        # print(labels[0])
+        labels_out = torch.zeros((nl, 7))
         if nl:
             labels_out[:, 1:] = torch.from_numpy(labels)
 
@@ -925,10 +928,10 @@ def verify_image_label(args):
                     msg = f'{prefix}WARNING: {im_file}: {nl - len(i)} duplicate labels removed'
             else:
                 ne = 1  # label empty
-                l = np.zeros((0, 5), dtype=np.float32)
+                l = np.zeros((0, 6), dtype=np.float32)
         else:
             nm = 1  # label missing
-            l = np.zeros((0, 5), dtype=np.float32)
+            l = np.zeros((0, 6), dtype=np.float32)
         return im_file, l, shape, segments, nm, nf, ne, nc, msg
     except Exception as e:
         nc = 1

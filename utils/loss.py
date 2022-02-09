@@ -176,8 +176,8 @@ class ComputeLoss:
     def build_targets(self, p, targets):
         # Build targets for compute_loss(), input targets(image,class,x,y,w,h,subcat)
         na, nt = self.na, targets.shape[0]  # number of anchors, targets
-        tcls, tbox, indices, anch, tsubcat = [], [], [], [], [], []
-        gain = torch.ones(7, device=targets.device)  # normalized to gridspace gain
+        tcls, tbox, indices, anch, tsubcat = [], [], [], [], []
+        gain = torch.ones(8, device=targets.device)  # normalized to gridspace gain
         ai = torch.arange(na, device=targets.device).float().view(na, 1).repeat(1, nt)  # same as .repeat_interleave(nt)
         targets = torch.cat((targets.repeat(na, 1, 1), ai[:, :, None]), 2)  # append anchor indices
 
@@ -206,7 +206,9 @@ class ComputeLoss:
                 j, k = ((gxy % 1 < g) & (gxy > 1)).T
                 l, m = ((gxi % 1 < g) & (gxi > 1)).T
                 j = torch.stack((torch.ones_like(j), j, k, l, m))
-                t = t.repeat((6, 1, 1))[j]
+                # print(j.shape)
+                # print(t.shape)
+                t = t.repeat((5, 1, 1))[j]
                 offsets = (torch.zeros_like(gxy)[None] + off[:, None])[j]
             else:
                 t = targets[0]
@@ -228,4 +230,4 @@ class ComputeLoss:
             tcls.append(c)  # class
             tsubcat.append(s)
 
-        return tcls, tbox, indices, anch
+        return tcls,tsubcat, tbox, indices, anch
