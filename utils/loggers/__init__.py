@@ -43,9 +43,9 @@ class Loggers():
         self.hyp = hyp
         self.logger = logger  # for printing results to console
         self.include = include
-        self.keys = ['train/box_loss', 'train/obj_loss', 'train/cls_loss',  # train loss
+        self.keys = ['train/box_loss', 'train/obj_loss', 'train/cls_loss', 'train/subcat_cls_loss',  # train loss
                      'metrics/precision', 'metrics/recall', 'metrics/mAP_0.5', 'metrics/mAP_0.5:0.95',  # metrics
-                     'val/box_loss', 'val/obj_loss', 'val/cls_loss',  # val loss
+                     'val/box_loss', 'val/obj_loss', 'val/cls_loss','val/subcat_cls_loss',  # val loss
                      'x/lr0', 'x/lr1', 'x/lr2']  # params
         self.best_keys = ['best/epoch', 'best/precision', 'best/recall', 'best/mAP_0.5', 'best/mAP_0.5:0.95',]
         for k in LOGGERS:
@@ -114,10 +114,13 @@ class Loggers():
     def on_fit_epoch_end(self, vals, epoch, best_fitness, fi):
         # Callback runs at the end of each fit (train+val) epoch
         x = {k: v for k, v in zip(self.keys, vals)}  # dict
+        #print(x)
         if self.csv:
             file = self.save_dir / 'results.csv'
             n = len(x) + 1  # number of cols
             s = '' if file.exists() else (('%20s,' * n % tuple(['epoch'] + self.keys)).rstrip(',') + '\n')  # add header
+            #print(s,n,len(vals))
+            #print(vals)
             with open(file, 'a') as f:
                 f.write(s + ('%20.5g,' * n % tuple([epoch] + vals)).rstrip(',') + '\n')
 
