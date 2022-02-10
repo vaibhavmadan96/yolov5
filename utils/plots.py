@@ -54,7 +54,7 @@ def check_pil_font(font=FONT, size=10):
     font = font if font.exists() else (CONFIG_DIR / font.name)
     try:
         return ImageFont.truetype(str(font) if font.exists() else font.name, size)
-    except Exception:  # download if missing
+    except Exception as e:  # download if missing
         check_font(font)
         try:
             return ImageFont.truetype(str(font), size)
@@ -213,10 +213,13 @@ def plot_images(images, targets, paths=None, fname='images.jpg', names=None, max
         annotator.rectangle([x, y, x + w, y + h], None, (255, 255, 255), width=2)  # borders
         if paths:
             annotator.text((x + 5, y + 5 + h), text=Path(paths[i]).name[:40], txt_color=(220, 220, 220))  # filenames
+        print("targets")
+        print(targets[0])
         if len(targets) > 0:
             ti = targets[targets[:, 0] == i]  # image targets
             boxes = xywh2xyxy(ti[:, 2:6]).T
             classes = ti[:, 1].astype('int')
+            print(classes)
             labels = ti.shape[1] == 6  # labels if no conf column
             conf = None if labels else ti[:, 6]  # check for confidence presence (label vs pred)
 
@@ -231,6 +234,7 @@ def plot_images(images, targets, paths=None, fname='images.jpg', names=None, max
             for j, box in enumerate(boxes.T.tolist()):
                 cls = classes[j]
                 color = colors(cls)
+                # print(names,len(names.keys()))
                 cls = names[cls] if names else cls
                 if labels or conf[j] > 0.25:  # 0.25 conf thresh
                     label = f'{cls}' if labels else f'{cls} {conf[j]:.1f}'
@@ -327,8 +331,9 @@ def plot_val_study(file='', dir='', x=None):  # from utils.plots import *; plot_
 def plot_labels(labels, names=(), save_dir=Path('')):
     # plot dataset labels
     LOGGER.info(f"Plotting labels to {save_dir / 'labels.jpg'}... ")
-    c, b = labels[:, 0], labels[:, 1:].transpose()  # classes, boxes
+    c, b, s = labels[:, 0], labels[:, 1:-1].transpose(), labels[:,-1]  # classes, boxes
     nc = int(c.max() + 1)  # number of classes
+    nsubcat = int(s.max()+1)
     x = pd.DataFrame(b.transpose(), columns=['x', 'y', 'width', 'height'])
 
     # seaborn correlogram
@@ -340,7 +345,7 @@ def plot_labels(labels, names=(), save_dir=Path('')):
     matplotlib.use('svg')  # faster
     ax = plt.subplots(2, 2, figsize=(8, 8), tight_layout=True)[1].ravel()
     y = ax[0].hist(c, bins=np.linspace(0, nc, nc + 1) - 0.5, rwidth=0.8)
-    [y[2].patches[i].set_color([x / 255 for x in colors(i)]) for i in range(nc)]  # update colors bug #3195
+    # [y[2].patches[i].set_color([x / 255 for x in colors(i)]) for i in range(nc)]  # update colors bug #3195
     ax[0].set_ylabel('instances')
     if 0 < len(names) < 30:
         ax[0].set_xticks(range(len(names)))
@@ -352,7 +357,7 @@ def plot_labels(labels, names=(), save_dir=Path('')):
 
     # rectangles
     labels[:, 1:3] = 0.5  # center
-    labels[:, 1:] = xywh2xyxy(labels[:, 1:]) * 2000
+    labels[:, 1:-1] = xywh2xyxy(labels[:, 1:-1]) * 2000
     img = Image.fromarray(np.ones((2000, 2000, 3), dtype=np.uint8) * 255)
     for cls, *box in labels[:1000]:
         ImageDraw.Draw(img).rectangle(box, width=1, outline=colors(cls))  # plot

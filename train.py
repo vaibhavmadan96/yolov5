@@ -268,6 +268,7 @@ def train(hyp,  # path/to/hyp.yaml or hyp dictionary
     model.hyp = hyp  # attach hyperparameters to model
     model.class_weights = labels_to_class_weights(dataset.labels, nc).to(device) * nc  # attach class weights
     model.names = names
+    model.subcat_names = subcat_names
 
     # Start training
     t0 = time.time()
@@ -368,7 +369,7 @@ def train(hyp,  # path/to/hyp.yaml or hyp dictionary
         if RANK in [-1, 0]:
             # mAP
             callbacks.run('on_train_epoch_end', epoch=epoch)
-            ema.update_attr(model, include=['yaml', 'nc', 'hyp', 'names', 'stride', 'class_weights'])
+            ema.update_attr(model, include=['yaml', 'nc', 'hyp', 'names','subcat_names', 'stride', 'class_weights'])
             final_epoch = (epoch + 1 == epochs) or stopper.possible_stop
             if not noval or final_epoch:  # Calculate mAP
                 results, maps, _ = val.run(data_dict,
@@ -440,7 +441,7 @@ def train(hyp,  # path/to/hyp.yaml or hyp dictionary
                                             single_cls=single_cls,
                                             dataloader=val_loader,
                                             save_dir=save_dir,
-                                            save_json=is_coco,
+                                            # save_json=is_coco,
                                             verbose=True,
                                             plots=True,
                                             callbacks=callbacks,

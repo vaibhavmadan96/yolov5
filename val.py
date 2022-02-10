@@ -157,6 +157,7 @@ def run(data,
     model.eval()
     is_coco = isinstance(data.get('val'), str) and data['val'].endswith('coco/val2017.txt')  # COCO dataset
     nc = 1 if single_cls else int(data['nc'])  # number of classes
+    nsubcat = int(data['nsubcat'])#number of subcategories
     iouv = torch.linspace(0.5, 0.95, 10).to(device)  # iou vector for mAP@0.5:0.95
     niou = iouv.numel()
 
@@ -171,6 +172,9 @@ def run(data,
     seen = 0
     confusion_matrix = ConfusionMatrix(nc=nc)
     names = {k: v for k, v in enumerate(model.names if hasattr(model, 'names') else model.module.names)}
+
+    # confusion_matrix_subcat = ConfusionMatrix(nc=nsubcat)
+    # names_subcat = {k: v for k, v in enumerate(model.subcat_names if hasattr(model, 'subcat_names') else model.module.names)}
     class_map = coco80_to_coco91_class() if is_coco else list(range(1000))
     s = ('%20s' + '%11s' * 6) % ('Class', 'Images', 'Labels', 'P', 'R', 'mAP@.5', 'mAP@.5:.95')
     dt, p, r, f1, mp, mr, map50, map = [0.0, 0.0, 0.0], 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
@@ -244,6 +248,8 @@ def run(data,
         # Plot images
         if plots and batch_i < 3:
             f = save_dir / f'val_batch{batch_i}_labels.jpg'  # labels
+            # print("names")
+            # print(names)
             Thread(target=plot_images, args=(im, targets, paths, f, names), daemon=True).start()
             f = save_dir / f'val_batch{batch_i}_pred.jpg'  # predictions
             Thread(target=plot_images, args=(im, output_to_target(out), paths, f, names), daemon=True).start()
@@ -276,6 +282,7 @@ def run(data,
     # Plots
     if plots:
         confusion_matrix.plot(save_dir=save_dir, names=list(names.values()))
+        # confusion_matrix_subcat.plot(save_dir=save_dir, names=list(names_subcat.values()))
         callbacks.run('on_val_end')
 
     # Save JSON
