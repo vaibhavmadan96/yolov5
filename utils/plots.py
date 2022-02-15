@@ -213,15 +213,15 @@ def plot_images(images, targets, paths=None, fname='images.jpg', names=None, max
         annotator.rectangle([x, y, x + w, y + h], None, (255, 255, 255), width=2)  # borders
         if paths:
             annotator.text((x + 5, y + 5 + h), text=Path(paths[i]).name[:40], txt_color=(220, 220, 220))  # filenames
-        print("targets")
-        print(targets[0])
+        # print("targets")
+        # print(targets[0])
         if len(targets) > 0:
             ti = targets[targets[:, 0] == i]  # image targets
             boxes = xywh2xyxy(ti[:, 2:6]).T
             classes = ti[:, 1].astype('int')
-            print(classes)
-            labels = ti.shape[1] == 6  # labels if no conf column
-            conf = None if labels else ti[:, 6]  # check for confidence presence (label vs pred)
+            # print(classes)
+            labels = ti.shape[1] == 7  # labels if no conf column
+            conf = None if labels else ti[:, 7]  # check for confidence presence (label vs pred)
 
             if boxes.shape[1]:
                 if boxes.max() <= 1.01:  # if normalized with tolerance 0.01

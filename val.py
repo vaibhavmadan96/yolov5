@@ -172,16 +172,19 @@ def run(data,
     seen = 0
     confusion_matrix = ConfusionMatrix(nc=nc)
     names = {k: v for k, v in enumerate(model.names if hasattr(model, 'names') else model.module.names)}
-
-    # confusion_matrix_subcat = ConfusionMatrix(nc=nsubcat)
-    # names_subcat = {k: v for k, v in enumerate(model.subcat_names if hasattr(model, 'subcat_names') else model.module.names)}
+    # print(names)
+    confusion_matrix_subcat = ConfusionMatrix(nc=nsubcat)
+    names_subcat = {k: v for k, v in enumerate(model.subcat_names if hasattr(model, 'subcat_names') else model.module.names)}
     class_map = coco80_to_coco91_class() if is_coco else list(range(1000))
+    # print(class_map)
     s = ('%20s' + '%11s' * 6) % ('Class', 'Images', 'Labels', 'P', 'R', 'mAP@.5', 'mAP@.5:.95')
     dt, p, r, f1, mp, mr, map50, map = [0.0, 0.0, 0.0], 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
     loss = torch.zeros(4, device=device)
     jdict, stats, ap, ap_class = [], [], [], []
     pbar = tqdm(dataloader, desc=s, bar_format='{l_bar}{bar:10}{r_bar}{bar:-10b}')  # progress bar
     for batch_i, (im, targets, paths, shapes) in enumerate(pbar):
+        # print("1")
+        # print(targets)
         t1 = time_sync()
         if pt or jit or engine:
             im = im.to(device, non_blocking=True)
@@ -204,7 +207,11 @@ def run(data,
         targets[:, 2:-1] *= torch.Tensor([width, height, width, height]).to(device)  # to pixels
         lb = [targets[targets[:, 0] == i, 1:] for i in range(nb)] if save_hybrid else []  # for autolabelling
         t3 = time_sync()
-        out = non_max_suppression(out, conf_thres, iou_thres, labels=lb, multi_label=True, agnostic=single_cls)
+        print("preds")
+        print(out[0].shape)
+        out = non_max_suppression(out, conf_thres, iou_thres, labels=lb, multi_label=False, agnostic=single_cls,nc=nc)
+        print("outs")
+        print(out[0].shape)
         dt[2] += time_sync() - t3
 
         # Metrics
@@ -212,6 +219,7 @@ def run(data,
             labels = targets[targets[:, 0] == si, 1:]
             nl = len(labels)
             tcls = labels[:, 0].tolist() if nl else []  # target class
+            tsubcat = labels[:,-1]
             path, shape = Path(paths[si]), shapes[si][0]
             seen += 1
 
@@ -234,6 +242,9 @@ def run(data,
                 correct = process_batch(predn, labelsn, iouv)
                 if plots:
                     confusion_matrix.process_batch(predn, labelsn)
+                    # print(labels[0],labels[:,-1].shape,tbox.shape,)
+                    labelsn2 = torch.cat((labels[:,5:6], tbox), 1) 
+                    confusion_matrix_subcat.process_batch(predn,labelsn2,level=2)
             else:
                 correct = torch.zeros(pred.shape[0], niou, dtype=torch.bool)
             stats.append((correct.cpu(), pred[:, 4].cpu(), pred[:, 5].cpu(), tcls))  # (correct, conf, pcls, tcls)
@@ -246,13 +257,13 @@ def run(data,
             callbacks.run('on_val_image_end', pred, predn, path, names, im[si])
 
         # Plot images
-        if plots and batch_i < 3:
-            f = save_dir / f'val_batch{batch_i}_labels.jpg'  # labels
-            # print("names")
-            # print(names)
-            Thread(target=plot_images, args=(im, targets, paths, f, names), daemon=True).start()
-            f = save_dir / f'val_batch{batch_i}_pred.jpg'  # predictions
-            Thread(target=plot_images, args=(im, output_to_target(out), paths, f, names), daemon=True).start()
+        # if plots and batch_i < 3:
+        #     f = save_dir / f'val_batch{batch_i}_labels.jpg'  # labels
+        #     # print("names")
+        #     # print(names)
+        #     Thread(target=plot_images, args=(im, targets, paths, f, names), daemon=True).start()
+        #     f = save_dir / f'val_batch{batch_i}_pred.jpg'  # predictions
+        #     Thread(target=plot_images, args=(im, output_to_target(out), paths, f, names), daemon=True).start()
 
     # Compute metrics
     stats = [np.concatenate(x, 0) for x in zip(*stats)]  # to numpy
@@ -282,7 +293,7 @@ def run(data,
     # Plots
     if plots:
         confusion_matrix.plot(save_dir=save_dir, names=list(names.values()))
-        # confusion_matrix_subcat.plot(save_dir=save_dir, names=list(names_subcat.values()))
+        confusion_matrix_subcat.plot(save_dir=save_dir, names=list(names_subcat.values()),level=2)
         callbacks.run('on_val_end')
 
     # Save JSON

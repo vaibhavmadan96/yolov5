@@ -675,14 +675,15 @@ def clip_coords(boxes, shape):
 
 
 def non_max_suppression(prediction, conf_thres=0.25, iou_thres=0.45, classes=None, agnostic=False, multi_label=False,
-                        labels=(), max_det=300):
+                        labels=(), max_det=300,nc=None):
     """Runs Non-Maximum Suppression (NMS) on inference results
 
     Returns:
          list of detections, on (n,6) tensor per image [xyxy, conf, cls]
     """
 
-    nc = prediction.shape[2] - 5  # number of classes
+    ntotal = prediction.shape[2] - 5  # number of classes
+    nsubcat = ntotal - nc
     xc = prediction[..., 4] > conf_thres  # candidates
 
     # Checks
@@ -698,7 +699,7 @@ def non_max_suppression(prediction, conf_thres=0.25, iou_thres=0.45, classes=Non
     merge = False  # use merge-NMS
 
     t = time.time()
-    output = [torch.zeros((0, 6), device=prediction.device)] * prediction.shape[0]
+    output = [torch.zeros((0, 8), device=prediction.device)] * prediction.shape[0]#8 conf & cls for subcat
     for xi, x in enumerate(prediction):  # image index, image inference
         # Apply constraints
         # x[((x[..., 2:4] < min_wh) | (x[..., 2:4] > max_wh)).any(1), 4] = 0  # width-height
@@ -707,29 +708,32 @@ def non_max_suppression(prediction, conf_thres=0.25, iou_thres=0.45, classes=Non
         # Cat apriori labels if autolabelling
         if labels and len(labels[xi]):
             l = labels[xi]
-            v = torch.zeros((len(l), nc + 5), device=x.device)
+            v = torch.zeros((len(l), ntotal + 5), device=x.device)
             v[:, :4] = l[:, 1:5]  # box
             v[:, 4] = 1.0  # conf
-            v[range(len(l)), l[:, 0].long() + 5] = 1.0  # cls
+            v[range(len(l)), l[:, 0].long() + 5] = 1.0  # cls  
             x = torch.cat((x, v), 0)
+
 
         # If none remain process next image
         if not x.shape[0]:
             continue
 
         # Compute conf
-        x[:, 5:] *= x[:, 4:5]  # conf = obj_conf * cls_conf
+        x[:, 5:] *= x[:, 4:5]  # conf = obj_conf * cls_conf #similar conf score for subcat
 
         # Box (center x, center y, width, height) to (x1, y1, x2, y2)
         box = xywh2xyxy(x[:, :4])
 
         # Detections matrix nx6 (xyxy, conf, cls)
         if multi_label:
-            i, j = (x[:, 5:] > conf_thres).nonzero(as_tuple=False).T
-            x = torch.cat((box[i], x[i, j + 5, None], j[:, None].float()), 1)
+            i, j = (x[:, 5:5+nc] > conf_thres).nonzero(as_tuple=False).T
+            k, l = (x[:, 5+nc:] > conf_thres).nonzero(as_tuple=False).T
+            x = torch.cat((box[i], x[i, j + 5, None], j[:, None].float(),x[k, l + 5 + j, None], l[:, None].float()), 1)
         else:  # best class only
-            conf, j = x[:, 5:].max(1, keepdim=True)
-            x = torch.cat((box, conf, j.float()), 1)[conf.view(-1) > conf_thres]
+            conf, j = x[:, 5:5+nc].max(1, keepdim=True)
+            conf2, k = x[:, 5+nc:].max(1, keepdim=True)
+            x = torch.cat((box, conf, j.float(),conf2,k), 1)[conf.view(-1) > conf_thres]#done till here
 
         # Filter by class
         if classes is not None:
@@ -741,6 +745,8 @@ def non_max_suppression(prediction, conf_thres=0.25, iou_thres=0.45, classes=Non
 
         # Check shape
         n = x.shape[0]  # number of boxes
+        print("xshape")
+        print(n)
         if not n:  # no boxes
             continue
         elif n > max_nms:  # excess boxes

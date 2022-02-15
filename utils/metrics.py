@@ -122,7 +122,7 @@ class ConfusionMatrix:
         self.conf = conf
         self.iou_thres = iou_thres
 
-    def process_batch(self, detections, labels):
+    def process_batch(self, detections, labels, level=None):
         """
         Return intersection-over-union (Jaccard index) of boxes.
         Both sets of boxes are expected to be in (x1, y1, x2, y2) format.
@@ -133,8 +133,14 @@ class ConfusionMatrix:
             None, updates confusion matrix accordingly
         """
         detections = detections[detections[:, 4] > self.conf]
+        gt_classes, detection_classes = None, None
         gt_classes = labels[:, 0].int()
-        detection_classes = detections[:, 5].int()
+        if level==2:
+            detection_classes = detections[:, -1].int()
+        else:
+            detection_classes = detections[:, 5].int()
+
+        
         iou = box_iou(labels[:, 1:], detections[:, :4])
 
         x = torch.where(iou > self.iou_thres)
@@ -171,7 +177,7 @@ class ConfusionMatrix:
         # fn = self.matrix.sum(0) - tp  # false negatives (missed detections)
         return tp[:-1], fp[:-1]  # remove background class
 
-    def plot(self, normalize=True, save_dir='', names=()):
+    def plot(self, normalize=True, save_dir='', names=(),level=None):
         try:
             import seaborn as sn
 
@@ -188,7 +194,10 @@ class ConfusionMatrix:
                            yticklabels=names + ['background FN'] if labels else "auto").set_facecolor((1, 1, 1))
             fig.axes[0].set_xlabel('True')
             fig.axes[0].set_ylabel('Predicted')
-            fig.savefig(Path(save_dir) / 'confusion_matrix.png', dpi=250)
+            if level==2:
+                fig.savefig(Path(save_dir) / 'confusion_matrix_subcat.png', dpi=250)
+            else:
+                fig.savefig(Path(save_dir) / 'confusion_matrix.png', dpi=250)
             plt.close()
         except Exception as e:
             print(f'WARNING: ConfusionMatrix plot failure: {e}')
@@ -238,7 +247,6 @@ def bbox_iou(box1, box2, x1y1x2y2=True, GIoU=False, DIoU=False, CIoU=False, eps=
         c_area = cw * ch + eps  # convex area
         return iou - (c_area - union) / c_area  # GIoU https://arxiv.org/pdf/1902.09630.pdf
     return iou  # IoU
-
 
 def box_iou(box1, box2):
     # https://github.com/pytorch/vision/blob/master/torchvision/ops/boxes.py

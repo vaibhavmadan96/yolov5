@@ -16,8 +16,8 @@ test:  # test images (optional)
 # Classes
 nc: 9  # number of classes
 names: ['upperbody','lowerbody','wholebody','head','arms and hands','waist','legs','feet','others']  # class names
-nsubcat: 1
-subcat_names: ['xyz']
+nsubcat: 18
+subcat_names: ['shirt, blouse', 'top, t-shirt, sweatshirt', 'sweater','cardigan','jacket', 'vest','pants','shorts','skirt','coat','dress','jumpsuit','cape','glasses','hat','watch','belt','tights, stockings']
 
 # Download script/URL (optional)
 # download: https://ultralytics.com/assets/coco128.zip
