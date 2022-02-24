@@ -301,17 +301,16 @@ class DetectMultiBackend(nn.Module):
         stride, names = 64, [f'class{i}' for i in range(1000)]  # assign defaults
         w = attempt_download(w)  # download if not local
         if data:  # data.yaml path (optional)
-            print("data")
-            print(data)
             with open(data, errors='ignore') as f:
-                names = yaml.safe_load(f)['names']  # class names
-                # names_subcat = yaml.safe_load(f)['names_subcat']
+                info = yaml.safe_load(f)
+                names = info['names']  # class names
+                subcat_names = info['subcat_names']
 
         if pt:  # PyTorch
             model = attempt_load(weights if isinstance(weights, list) else w, map_location=device)
             stride = max(int(model.stride.max()), 32)  # model stride
             names = model.module.names if hasattr(model, 'module') else model.names  # get class names
-            names_subcat = model.module.subcat_names if hasattr(model, 'module') else model.subcat_names 
+            # subcat_names = model.module.subcat_names if hasattr(model, 'module') else model.subcat_names 
             self.model = model  # explicitly assign for to(), cpu(), cuda(), half()
         elif jit:  # TorchScript
             LOGGER.info(f'Loading {w} for TorchScript inference...')
