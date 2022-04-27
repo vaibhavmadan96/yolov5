@@ -3,7 +3,8 @@
 Run inference on images, videos, directories, streams, etc.
 
 Usage - sources:
-    $ python path/to/detect.py --weights yolov5s.pt --source 0              # webcam
+# won't work without --data param
+    $ python path/to/detect.py --data coco_fashionpedia_Ncategory_subcat.yaml --weights yolov5s.pt --source 0              # webcam
                                                              img.jpg        # image
                                                              vid.mp4        # video
                                                              path/          # directory
@@ -12,7 +13,7 @@ Usage - sources:
                                                              'rtsp://example.com/media.mp4'  # RTSP, RTMP, HTTP stream
 
 Usage - formats:
-    $ python path/to/detect.py --weights yolov5s.pt                 # PyTorch
+    $ python path/to/detect.py --data coco_fashionpedia_Ncategory_subcat --weights yolov5s.pt                 # PyTorch
                                          yolov5s.torchscript        # TorchScript
                                          yolov5s.onnx               # ONNX Runtime or OpenCV DNN with --dnn
                                          yolov5s.xml                # OpenVINO
@@ -221,7 +222,7 @@ def parse_opt():
     parser = argparse.ArgumentParser()
     parser.add_argument('--weights', nargs='+', type=str, default=ROOT / 'yolov5s.pt', help='model path(s)')
     parser.add_argument('--source', type=str, default=ROOT / 'data/images', help='file/dir/URL/glob, 0 for webcam')
-    parser.add_argument('--data', type=str, default=ROOT / 'data/coco128.yaml', help='(optional) dataset.yaml path')
+    parser.add_argument('--data', type=str, default=ROOT / 'data/coco_fashionpedia_Ncategory_subcat.yaml', help='dataset.yaml path',required=True)
     parser.add_argument('--imgsz', '--img', '--img-size', nargs='+', type=int, default=[640], help='inference size h,w')
     parser.add_argument('--conf-thres', type=float, default=0.25, help='confidence threshold')
     parser.add_argument('--iou-thres', type=float, default=0.45, help='NMS IoU threshold')
